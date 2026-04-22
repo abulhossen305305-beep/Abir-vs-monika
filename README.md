@@ -1,190 +1,202 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Abir Runner</title>
+  <title>Abir Dino Runner</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <style>
-    body { margin: 0; overflow: hidden; background: #eee; }
-    canvas { display: block; margin: auto; background: white; }
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: #eee;
+      touch-action: none;
+    }
+    canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      background: white;
+    }
   </style>
 </head>
 <body>
 
-<canvas id="gameCanvas" width="800" height="300"></canvas>
+<canvas id="gameCanvas"></canvas>
 
 <script>
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
-// Game states: start, dialogue, countdown, play, gameover
-let gameState = "start";
+// 📱 screen fit
+function resize() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener("resize", resize);
 
-let dialogueIndex = 0;
-let countdown = 3;
+// 🎮 GAME STATE
+let started = false;
+let gameOver = false;
 
-// 👉 তুমি এখানে নিজের ডায়ালগ বসাবে
-let dialogues = [
-  "Tap korle start hobe", 
-  "Parle amay dhore chude  dekhao bici chara abir 😄",
-  "" // পারলে আমাকে ধরে চু*দে দেখাও
-];
+// 🗣️ 👉 ডায়ালগ লেখার আলাদা জায়গা (এখানেই লিখবে)
+let abirDialogue = "monika amay aktu chudte daw";
+let monikaDialogue = "tui chudte paros na. ami hasan ar kase gelam ";
 
-// 👉 Game Over dialogue
-let monikaDialogue = "ami jantam tumi je amay chudte parba na amay ke to hasan a onek valo chude.gay abir";
-
-// Abir
+// 🧍 Abir
 let abir = {
-  x: 50,
-  y: 200,
-  width: 50,
-  height: 50,
+  x: 60,
+  y: 0,
+  w: 40,
+  h: 40,
   dy: 0,
   gravity: 0.8,
-  jumpPower: -12,
-  grounded: true
+  jump: -14,
+  grounded: false
 };
 
-// Monika
+// ground
+function groundY() {
+  return canvas.height - 120;
+}
+
+// 🧕 Monika (safe runner)
 let monika = {
-  x: 600,
-  y: 200,
-  width: 50,
-  height: 50,
+  x: 120,
+  y: 0,
+  w: 40,
+  h: 40,
   speed: 4
 };
 
-// Obstacles
+// 🌵 obstacles
 let obstacles = [];
 
 function spawnObstacle() {
-  if (gameState === "play") {
+  if (started && !gameOver) {
     obstacles.push({
-      x: 800,
-      y: 210,
-      width: 30,
-      height: 40,
+      x: canvas.width,
+      y: groundY(),
+      w: 30,
+      h: 50,
       speed: 6
     });
   }
 }
-
 setInterval(spawnObstacle, 1400);
 
-// Images
-let abirImg = new Image();
-abirImg.src = "abir.png";
-
-let monikaImg = new Image();
-monikaImg.src = "monika.png";
-
+// 🎮 update
 function update() {
-  if (gameState !== "play") return;
+  if (!started || gameOver) return;
 
+  // Abir physics
   abir.dy += abir.gravity;
   abir.y += abir.dy;
 
-  if (abir.y >= 200) {
-    abir.y = 200;
+  if (abir.y >= groundY()) {
+    abir.y = groundY();
     abir.dy = 0;
     abir.grounded = true;
   }
 
-  monika.x -= monika.speed;
-  if (monika.x < 400) {
-    monika.x = 700;
-  }
+  // Monika auto run (safe)
+  monika.x += monika.speed;
+  if (monika.x > canvas.width) monika.x = 100;
 
-  obstacles.forEach((obs, index) => {
-    obs.x -= obs.speed;
+  // obstacles
+  obstacles.forEach((o, i) => {
+    o.x -= o.speed;
 
+    // collision
     if (
-      abir.x < obs.x + obs.width &&
-      abir.x + abir.width > obs.x &&
-      abir.y < obs.y + obs.height &&
-      abir.y + abir.height > obs.y
+      abir.x < o.x + o.w &&
+      abir.x + abir.w > o.x &&
+      abir.y < o.y + o.h &&
+      abir.y + abir.h > o.y
     ) {
-      gameState = "gameover";
+      gameOver = true;
+
+      // 👉 এখানে game over dialogue
+      monikaDialogue = "👉 hasan tor theke onek valo chude. tor bicci nai";
+      abirDialogue = "👉 amamr ta choto ta ami jani.but aktu chusar jonno daw";
     }
 
-    if (obs.x < -50) {
-      obstacles.splice(index, 1);
-    }
+    if (o.x < -50) obstacles.splice(i, 1);
   });
 }
 
+// 🎨 draw
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  if (gameState === "start") {
-    ctx.font = "24px Arial";
-    ctx.fillText("Tap to Start", 320, 150);
+  // ground
+  ctx.fillStyle = "black";
+  ctx.fillRect(0, groundY() + 40, canvas.width, 2);
 
-  } else if (gameState === "dialogue") {
-    ctx.drawImage(monikaImg, 350, 150, 50, 50);
-    ctx.font = "18px Arial";
-    ctx.fillText(dialogues[dialogueIndex], 200, 120);
-
-  } else if (gameState === "countdown") {
-    ctx.font = "40px Arial";
-    ctx.fillText(countdown, 380, 150);
-
-  } else if (gameState === "play") {
-    ctx.drawImage(abirImg, abir.x, abir.y, abir.width, abir.height);
-    ctx.drawImage(monikaImg, monika.x, monika.y, monika.width, monika.height);
-
-    ctx.fillStyle = "red";
-    obstacles.forEach(obs => {
-      ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
-    });
-
-  } else if (gameState === "gameover") {
+  // start screen
+  if (!started) {
+    ctx.fillStyle = "black";
     ctx.font = "22px Arial";
-    ctx.fillText("Game Over", 330, 80);
+    ctx.fillText("Tap Anywhere to Start", canvas.width/2 - 120, canvas.height/2);
+    return;
+  }
 
-    ctx.drawImage(monikaImg, 350, 150, 50, 50);
+  // Abir
+  ctx.fillStyle = "blue";
+  ctx.fillRect(abir.x, abir.y, abir.w, abir.h);
 
-    ctx.font = "18px Arial";
-    ctx.fillText(monikaDialogue, 200, 120);
+  // Monika
+  ctx.fillStyle = "hotpink";
+  ctx.fillRect(monika.x, monika.y, monika.w, monika.h);
+
+  // obstacles
+  ctx.fillStyle = "green";
+  obstacles.forEach(o => {
+    ctx.fillRect(o.x, o.y, o.w, o.h);
+  });
+
+  // 🗣️ dialogue box (game over)
+  if (gameOver) {
+    ctx.fillStyle = "red";
+    ctx.font = "28px Arial";
+    ctx.fillText("Game Over", canvas.width/2 - 80, canvas.height/2 - 40);
+
+    ctx.fillStyle = "black";
+    ctx.font = "16px Arial";
+
+    // Monika dialogue
+    ctx.fillText(monikaDialogue, canvas.width/2 - 120, canvas.height/2);
+
+    // Abir dialogue
+    ctx.fillText(abirDialogue, canvas.width/2 - 120, canvas.height/2 + 30);
   }
 }
 
-function gameLoop() {
+// loop
+function loop() {
   update();
   draw();
-  requestAnimationFrame(gameLoop);
+  requestAnimationFrame(loop);
 }
+loop();
 
-// Tap / Click control
-document.addEventListener("click", () => {
+// 📱 TAP ANYWHERE = START + JUMP
+document.addEventListener("touchstart", () => {
+  if (!started) started = true;
 
-  if (gameState === "start") {
-    gameState = "dialogue";
-
-  } else if (gameState === "dialogue") {
-    dialogueIndex++;
-
-    if (dialogueIndex >= dialogues.length) {
-      gameState = "countdown";
-
-      let interval = setInterval(() => {
-        countdown--;
-        if (countdown === 0) {
-          clearInterval(interval);
-          gameState = "play";
-        }
-      }, 1000);
-    }
-  }
-});
-
-// Jump
-document.addEventListener("keydown", function(e) {
-  if (e.code === "Space" && abir.grounded && gameState === "play") {
-    abir.dy = abir.jumpPower;
+  if (!gameOver && abir.grounded) {
+    abir.dy = abir.jump;
     abir.grounded = false;
   }
 });
 
-gameLoop();
+document.addEventListener("click", () => {
+  if (!started) started = true;
+
+  if (!gameOver && abir.grounded) {
+    abir.dy = abir.jump;
+    abir.grounded = false;
+  }
+});
 </script>
 
 </body>
